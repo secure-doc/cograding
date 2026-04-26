@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 
 const API_KEY_STORAGE_KEY = 'cograding_gemini_api_key';
 
