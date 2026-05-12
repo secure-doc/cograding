@@ -12,7 +12,7 @@ function App() {
   const [result, setResult] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const handleGrade = async (task: string, expected: string, file: File) => {
+  const handleGrade = async (task: string | File, expected: string | File, file: File) => {
     if (!apiKey) return;
     
     setIsLoading(true);

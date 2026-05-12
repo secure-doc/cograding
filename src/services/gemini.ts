@@ -11,32 +11,38 @@ export const fileToGenerativePart = async (file: File) => {
 
 export const gradeSubmission = async (
   apiKey: string,
-  taskDescription: string,
-  expectedSolution: string,
+  taskDescription: string | File,
+  expectedSolution: string | File,
   studentFile: File
 ) => {
   const genAI = new GoogleGenerativeAI(apiKey);
   // Using the multimodal model 1.5-flash which is standard for these tasks and fast
   const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
 
-  const prompt = `
-Du bist ein erfahrener Lehrer, der eine Schülerarbeit korrigiert.
-Bitte analysiere das beigefügte Bild der Schülerarbeit und vergleiche es mit der folgenden Aufgabenstellung und dem Erwartungshorizont.
+  const promptParts: any[] = [];
+  promptParts.push("Du bist ein erfahrener Lehrer, der eine Schülerarbeit korrigiert.\nBitte analysiere das beigefügte Dokument der Schülerarbeit und vergleiche es mit der folgenden Aufgabenstellung und dem Erwartungshorizont.\n\nAufgabenstellung:\n");
 
-Aufgabenstellung:
-${taskDescription}
+  if (typeof taskDescription === 'string') {
+    promptParts.push(taskDescription + "\n\n");
+  } else {
+    promptParts.push(await fileToGenerativePart(taskDescription));
+    promptParts.push("\n\n");
+  }
 
-Erwartungshorizont:
-${expectedSolution}
+  promptParts.push("Erwartungshorizont:\n");
+  if (typeof expectedSolution === 'string') {
+    promptParts.push(expectedSolution + "\n\n");
+  } else {
+    promptParts.push(await fileToGenerativePart(expectedSolution));
+    promptParts.push("\n\n");
+  }
 
-Bitte gib ein strukturiertes Feedback zur Lösung des Schülers. 
-Bewerte, ob die Aufgabe vollständig und richtig bearbeitet wurde, und nenne spezifische Fehler oder gute Ansätze.
-Schließe mit einer kurzen Zusammenfassung und ggf. einer Notentendenz (z.B. "sehr gut", "befriedigend" etc., falls aus dem Erwartungshorizont ableitbar).
-  `.trim();
+  promptParts.push("Schülerarbeit:\n");
+  promptParts.push(await fileToGenerativePart(studentFile));
+  
+  promptParts.push("\n\nBitte gib ein strukturiertes Feedback zur Lösung des Schülers. \nBewerte, ob die Aufgabe vollständig und richtig bearbeitet wurde, und nenne spezifische Fehler oder gute Ansätze.\nSchließe mit einer kurzen Zusammenfassung und ggf. einer Notentendenz (z.B. \"sehr gut\", \"befriedigend\" etc., falls aus dem Erwartungshorizont ableitbar).");
 
-  const imagePart = await fileToGenerativePart(studentFile);
-
-  const result = await model.generateContent([prompt, imagePart]);
+  const result = await model.generateContent(promptParts);
   const response = await result.response;
   return response.text();
 };
