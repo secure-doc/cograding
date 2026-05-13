@@ -1,0 +1,31 @@
+name: Cleanup Feature Branch Preview
+
+on:
+  delete:
+
+permissions:
+  contents: write
+
+jobs:
+  cleanup:
+    if: github.event.ref_type == 'branch'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout gh-pages branch
+        uses: actions/checkout@v4
+        with:
+          ref: gh-pages
+
+      - name: Remove feature branch directory
+        run: |
+          DIR="features/${{ github.event.ref }}"
+          if [ -d "$DIR" ]; then
+            echo "Removing directory $DIR..."
+            git config --global user.name "github-actions[bot]"
+            git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git rm -r "$DIR"
+            git commit -m "chore: cleanup preview for deleted branch ${{ github.event.ref }}"
+            git push origin gh-pages
+          else
+            echo "Directory $DIR does not exist. Nothing to do."
+          fi
