@@ -2,26 +2,24 @@ name: Deploy static content to Pages
 
 on:
   push:
-    branches: ["main"]
+    branches:
+      - '**'
   workflow_dispatch:
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 permissions:
-  contents: read
+  contents: write
   pages: write
   id-token: write
 
 concurrency:
-  group: "pages"
+  group: "pages-${{ github.ref_name }}"
   cancel-in-progress: false
 
 jobs:
   deploy:
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -30,7 +28,7 @@ jobs:
       - name: Set up Node
         uses: actions/setup-node@v4
         with:
-          node-version: 24 # 2. FIX: Baut deine React-App ebenfalls mit Node 24
+          node-version: 24
           cache: 'npm'
           
       - name: Install dependencies
@@ -38,15 +36,13 @@ jobs:
         
       - name: Build
         run: npm run build
+        env:
+          VITE_BASE_URL: ${{ github.ref_name == 'main' && '/cograding/' || format('/cograding/features/{0}/', github.ref_name) }}
         
-      - name: Setup Pages
-        uses: actions/configure-pages@v4
-        
-      - name: Upload artifact
-        uses: actions/upload-pages-artifact@v3
-        with:
-          path: './dist'
-          
       - name: Deploy to GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v4
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./dist
+          destination_dir: ${{ github.ref_name == 'main' && '' || format('features/{0}', github.ref_name) }}
+          keep_files: true

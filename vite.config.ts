@@ -8,5 +8,5 @@ export default defineConfig({
     tailwindcss(),
     react(),
   ],
-  base: '/cograding/',
+  base: process.env.VITE_BASE_URL || '/cograding/',
 })
