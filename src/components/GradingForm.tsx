@@ -2,7 +2,7 @@ import { useState, useRef } from 'react';
 import { Upload, FileText, Send, Loader2, Image as ImageIcon, Type, FileUp } from 'lucide-react';
 
 interface GradingFormProps {
-  onSubmit: (task: string | File, expected: string | File, file: File) => Promise<void>;
+  onSubmit: (task: string | File, expected: string | File, files: File[]) => Promise<void>;
   isLoading: boolean;
 }
 
@@ -79,6 +79,84 @@ function FileDropzone({
   );
 }
 
+function MultiFileDropzone({ 
+  files, 
+  onFilesChange, 
+  accept, 
+  title, 
+  subtitle 
+}: { 
+  files: File[]; 
+  onFilesChange: (files: File[]) => void; 
+  accept: string; 
+  title: string; 
+  subtitle: string; 
+}) {
+  const [dragActive, setDragActive] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleDrag = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.type === "dragenter" || e.type === "dragover") {
+      setDragActive(true);
+    } else if (e.type === "dragleave") {
+      setDragActive(false);
+    }
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragActive(false);
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      onFilesChange(Array.from(e.dataTransfer.files));
+    }
+  };
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    e.preventDefault();
+    if (e.target.files && e.target.files.length > 0) {
+      onFilesChange(Array.from(e.target.files));
+    }
+  };
+
+  return (
+    <div 
+      className={`relative border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-colors ${dragActive ? 'border-primary bg-primary/5' : 'border-slate-300 hover:border-primary/50'}`}
+      onDragEnter={handleDrag}
+      onDragLeave={handleDrag}
+      onDragOver={handleDrag}
+      onDrop={handleDrop}
+      onClick={() => fileInputRef.current?.click()}
+    >
+      <input
+        ref={fileInputRef}
+        type="file"
+        multiple
+        className="hidden"
+        accept={accept}
+        onChange={handleChange}
+      />
+      <div className="flex flex-col items-center gap-2 text-slate-500">
+        <Upload className="w-8 h-8 text-slate-400" />
+        {files.length > 0 ? (
+          <div className="flex flex-col items-center max-h-32 overflow-y-auto w-full px-4 space-y-1">
+            {files.map((f, i) => (
+              <span key={i} className="font-medium text-primary truncate w-full text-center" title={f.name}>{f.name}</span>
+            ))}
+          </div>
+        ) : (
+          <>
+            <p className="font-medium">{title}</p>
+            <p className="text-xs">{subtitle}</p>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export function GradingForm({ onSubmit, isLoading }: GradingFormProps) {
   const [taskType, setTaskType] = useState<'text' | 'file'>('text');
   const [taskText, setTaskText] = useState('');
@@ -88,7 +166,7 @@ export function GradingForm({ onSubmit, isLoading }: GradingFormProps) {
   const [expectedText, setExpectedText] = useState('');
   const [expectedFile, setExpectedFile] = useState<File | null>(null);
 
-  const [studentFile, setStudentFile] = useState<File | null>(null);
+  const [studentFiles, setStudentFiles] = useState<File[]>([]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -96,15 +174,15 @@ export function GradingForm({ onSubmit, isLoading }: GradingFormProps) {
     const taskData = taskType === 'text' ? taskText : taskFile;
     const expectedData = expectedType === 'text' ? expectedText : expectedFile;
 
-    if (!studentFile || !taskData || !expectedData) return;
+    if (studentFiles.length === 0 || !taskData || !expectedData) return;
 
-    await onSubmit(taskData, expectedData, studentFile);
+    await onSubmit(taskData, expectedData, studentFiles);
   };
 
   const isFormValid = () => {
     const isTaskValid = taskType === 'text' ? taskText.trim().length > 0 : taskFile !== null;
     const isExpectedValid = expectedType === 'text' ? expectedText.trim().length > 0 : expectedFile !== null;
-    const isStudentFileValid = studentFile !== null;
+    const isStudentFileValid = studentFiles.length > 0;
     return isTaskValid && isExpectedValid && isStudentFileValid;
   };
 
@@ -201,12 +279,12 @@ export function GradingForm({ onSubmit, isLoading }: GradingFormProps) {
         <label className="block text-sm font-medium text-slate-700 mb-2 flex items-center gap-2">
           <ImageIcon className="w-4 h-4" /> Schülerarbeit (Student Submission)
         </label>
-        <FileDropzone
-          file={studentFile}
-          onFileChange={setStudentFile}
+        <MultiFileDropzone
+          files={studentFiles}
+          onFilesChange={setStudentFiles}
           accept="image/*,application/pdf"
           title="Click to upload or drag and drop"
-          subtitle="Images (PNG, JPG) or PDF"
+          subtitle="Images (PNG, JPG) or PDF. Multiple files allowed."
         />
       </div>
 

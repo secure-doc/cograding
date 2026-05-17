@@ -13,7 +13,7 @@ export const gradeSubmission = async (
   apiKey: string,
   taskDescription: string | File,
   expectedSolution: string | File,
-  studentFile: File
+  studentFiles: File[]
 ) => {
   const genAI = new GoogleGenerativeAI(apiKey);
   // Using the multimodal model 1.5-flash which is standard for these tasks and fast
@@ -38,7 +38,9 @@ export const gradeSubmission = async (
   }
 
   promptParts.push("Schülerarbeit:\n");
-  promptParts.push(await fileToGenerativePart(studentFile));
+  for (const file of studentFiles) {
+    promptParts.push(await fileToGenerativePart(file));
+  }
   
   promptParts.push("\n\nBitte gib ein strukturiertes Feedback zur Lösung des Schülers. \nBewerte, ob die Aufgabe vollständig und richtig bearbeitet wurde, und nenne spezifische Fehler oder gute Ansätze.\nSchließe mit einer kurzen Zusammenfassung und ggf. einer Notentendenz (z.B. \"sehr gut\", \"befriedigend\" etc., falls aus dem Erwartungshorizont ableitbar).");
 
