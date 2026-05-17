@@ -11,16 +11,20 @@ export const fileToGenerativePart = async (file: File) => {
 
 export const gradeSubmission = async (
   apiKey: string,
+  systemPrompt: string,
   taskDescription: string | File,
   expectedSolution: string | File,
   studentFiles: File[]
 ) => {
   const genAI = new GoogleGenerativeAI(apiKey);
   // Using the multimodal model 1.5-flash which is standard for these tasks and fast
-  const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+  const model = genAI.getGenerativeModel({ 
+    model: 'gemini-1.5-flash',
+    systemInstruction: systemPrompt
+  });
 
   const promptParts: any[] = [];
-  promptParts.push("Du bist ein erfahrener Lehrer, der eine Schülerarbeit korrigiert.\nBitte analysiere das beigefügte Dokument der Schülerarbeit und vergleiche es mit der folgenden Aufgabenstellung und dem Erwartungshorizont.\n\nAufgabenstellung:\n");
+  promptParts.push("Aufgabenstellung:\n");
 
   if (typeof taskDescription === 'string') {
     promptParts.push(taskDescription + "\n\n");
@@ -41,8 +45,6 @@ export const gradeSubmission = async (
   for (const file of studentFiles) {
     promptParts.push(await fileToGenerativePart(file));
   }
-  
-  promptParts.push("\n\nBitte gib ein strukturiertes Feedback zur Lösung des Schülers. \nBewerte, ob die Aufgabe vollständig und richtig bearbeitet wurde, und nenne spezifische Fehler oder gute Ansätze.\nSchließe mit einer kurzen Zusammenfassung und ggf. einer Notentendenz (z.B. \"sehr gut\", \"befriedigend\" etc., falls aus dem Erwartungshorizont ableitbar).");
 
   const result = await model.generateContent(promptParts);
   const response = await result.response;
