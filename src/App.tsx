@@ -7,8 +7,10 @@ import { ResultDisplay } from './components/ResultDisplay';
 import { gradeSubmission } from './services/gemini';
 import { GraduationCap, LogOut, Settings } from 'lucide-react';
 import { useSystemPrompt } from './hooks/useSystemPrompt';
+import { useTranslation } from 'react-i18next';
 
 function App() {
+  const { t, i18n } = useTranslation();
   const { apiKey, setApiKey } = useApiKey();
   const { systemPrompt, setSystemPrompt, resetSystemPrompt } = useSystemPrompt();
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
@@ -57,34 +59,51 @@ function App() {
             <GraduationCap className="w-8 h-8" />
             <h1 className="text-2xl font-bold tracking-tight text-slate-900">CoGrader<span className="text-primary">.ai</span></h1>
           </div>
-          {apiKey && (
-            <div className="flex items-center gap-4">
-              <button 
-                onClick={() => setIsSettingsOpen(true)}
-                className="flex items-center gap-2 text-sm font-medium text-slate-600 hover:text-slate-900 transition-colors"
-                title="Settings"
+          <div className="flex items-center gap-4">
+            {apiKey && (
+              <>
+                <button 
+                  onClick={() => setIsSettingsOpen(true)}
+                  className="flex items-center gap-2 text-sm font-medium text-slate-600 hover:text-slate-900 transition-colors"
+                  title={t('app.settings')}
+                >
+                  <Settings className="w-4 h-4" />
+                  <span className="hidden sm:inline">{t('app.settings')}</span>
+                </button>
+                <button 
+                  onClick={handleLogout}
+                  className="flex items-center gap-2 text-sm font-medium text-slate-600 hover:text-slate-900 transition-colors"
+                  title={t('app.logout')}
+                >
+                  <LogOut className="w-4 h-4" />
+                  <span className="hidden sm:inline">{t('app.logout')}</span>
+                </button>
+                <div className="w-px h-6 bg-slate-200 hidden sm:block"></div>
+              </>
+            )}
+            <div className="flex items-center gap-1 text-sm font-medium text-slate-600 bg-slate-100 p-1 rounded-lg">
+              <button
+                onClick={() => i18n.changeLanguage('de')}
+                className={`px-2 py-1 rounded-md transition-colors ${i18n.language.startsWith('de') ? 'bg-white text-primary shadow-sm' : 'hover:text-slate-900'}`}
               >
-                <Settings className="w-4 h-4" />
-                <span className="hidden sm:inline">Settings</span>
+                DE
               </button>
-              <button 
-                onClick={handleLogout}
-                className="flex items-center gap-2 text-sm font-medium text-slate-600 hover:text-slate-900 transition-colors"
-                title="Clear API Key"
+              <button
+                onClick={() => i18n.changeLanguage('en')}
+                className={`px-2 py-1 rounded-md transition-colors ${i18n.language.startsWith('en') ? 'bg-white text-primary shadow-sm' : 'hover:text-slate-900'}`}
               >
-                <LogOut className="w-4 h-4" />
-                <span className="hidden sm:inline">Logout</span>
+                EN
               </button>
             </div>
-          )}
+          </div>
         </div>
       </header>
 
       <main className="flex-1 max-w-3xl w-full mx-auto p-4 py-8">
         <div className="mb-8">
-          <h2 className="text-3xl font-bold text-slate-900 mb-3">Grade Submission</h2>
+          <h2 className="text-3xl font-bold text-slate-900 mb-3">{t('app.gradeSubmission')}</h2>
           <p className="text-slate-600 text-lg">
-            Upload a student's work along with the task description and expected solution. CoGrader will analyze it and provide structured feedback.
+            {t('app.description')}
           </p>
         </div>
 
@@ -94,7 +113,7 @@ function App() {
       </main>
       
       <footer className="bg-slate-50 border-t border-slate-200 py-6 text-center text-slate-500 text-sm">
-        <p>CoGrader.ai &copy; {new Date().getFullYear()} - BYOK Architecture</p>
+        <p>{t('app.footer', { year: new Date().getFullYear() })}</p>
       </footer>
     </div>
   );

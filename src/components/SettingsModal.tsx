@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { X } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { DEFAULT_SYSTEM_PROMPT } from '../hooks/useSystemPrompt';
 
 interface SettingsModalProps {
@@ -17,6 +18,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   onSave, 
   onReset 
 }) => {
+  const { t } = useTranslation();
   const [localPrompt, setLocalPrompt] = useState(systemPrompt);
 
   useEffect(() => {
@@ -41,11 +43,11 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
       <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl overflow-hidden flex flex-col max-h-[90vh]">
         <div className="p-4 border-b border-slate-200 flex justify-between items-center bg-slate-50">
-          <h2 className="text-xl font-bold text-slate-800">Settings</h2>
+          <h2 className="text-xl font-bold text-slate-800">{t('settings.title')}</h2>
           <button 
             onClick={onClose}
             className="text-slate-400 hover:text-slate-600 transition-colors"
-            title="Close"
+            title={t('settings.cancel')}
           >
             <X className="w-6 h-6" />
           </button>
@@ -55,11 +57,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           <div className="space-y-4">
             <div>
               <label htmlFor="systemPrompt" className="block text-sm font-medium text-slate-700 mb-2">
-                System Prompt
+                {t('settings.systemPrompt')}
               </label>
               <p className="text-sm text-slate-500 mb-3">
-                Passe hier die Anweisungen an, die Gemini für die Korrektur erhält. 
-                Dies steuert das Verhalten und die Art des Feedbacks.
+                {t('settings.systemPromptDesc')}
               </p>
               <textarea
                 id="systemPrompt"
@@ -77,20 +78,20 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             onClick={handleReset}
             className="px-4 py-2 text-sm font-medium text-slate-600 hover:text-slate-900 transition-colors"
           >
-            Auf Standard zurücksetzen
+            {t('settings.reset')}
           </button>
           <div className="flex gap-3">
             <button
               onClick={onClose}
               className="px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100 rounded-lg transition-colors"
             >
-              Abbrechen
+              {t('settings.cancel')}
             </button>
             <button
               onClick={handleSave}
               className="px-6 py-2 bg-primary text-white text-sm font-medium rounded-lg hover:bg-primary/90 transition-colors shadow-sm"
             >
-              Speichern
+              {t('settings.save')}
             </button>
           </div>
         </div>

@@ -1,5 +1,6 @@
 import { useState, useRef } from 'react';
 import { Upload, FileText, Send, Loader2, Image as ImageIcon, Type, FileUp } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 interface GradingFormProps {
   onSubmit: (task: string | File, expected: string | File, files: File[]) => Promise<void>;
@@ -158,6 +159,7 @@ function MultiFileDropzone({
 }
 
 export function GradingForm({ onSubmit, isLoading }: GradingFormProps) {
+  const { t } = useTranslation();
   const [taskType, setTaskType] = useState<'text' | 'file'>('text');
   const [taskText, setTaskText] = useState('');
   const [taskFile, setTaskFile] = useState<File | null>(null);
@@ -192,7 +194,7 @@ export function GradingForm({ onSubmit, isLoading }: GradingFormProps) {
       <div>
         <div className="flex items-center justify-between mb-2">
           <label className="text-sm font-medium text-slate-700 flex items-center gap-2">
-            <FileText className="w-4 h-4" /> Aufgabenstellung (Task)
+            <FileText className="w-4 h-4" /> {t('form.task')}
           </label>
           <div className="flex bg-slate-100 rounded-lg p-1">
             <button
@@ -200,14 +202,14 @@ export function GradingForm({ onSubmit, isLoading }: GradingFormProps) {
               onClick={() => setTaskType('text')}
               className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${taskType === 'text' ? 'bg-white text-primary shadow-sm' : 'text-slate-600 hover:text-slate-900'}`}
             >
-              <Type className="w-3.5 h-3.5" /> Text
+              <Type className="w-3.5 h-3.5" /> {t('form.text')}
             </button>
             <button
               type="button"
               onClick={() => setTaskType('file')}
               className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${taskType === 'file' ? 'bg-white text-primary shadow-sm' : 'text-slate-600 hover:text-slate-900'}`}
             >
-              <FileUp className="w-3.5 h-3.5" /> File
+              <FileUp className="w-3.5 h-3.5" /> {t('form.file')}
             </button>
           </div>
         </div>
@@ -215,7 +217,7 @@ export function GradingForm({ onSubmit, isLoading }: GradingFormProps) {
         {taskType === 'text' ? (
           <textarea
             className="w-full p-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent resize-none h-32"
-            placeholder="Enter the task description here..."
+            placeholder={t('form.taskPlaceholder')}
             value={taskText}
             onChange={(e) => setTaskText(e.target.value)}
             required
@@ -225,8 +227,8 @@ export function GradingForm({ onSubmit, isLoading }: GradingFormProps) {
             file={taskFile}
             onFileChange={setTaskFile}
             accept="image/*,application/pdf"
-            title="Click to upload or drag and drop"
-            subtitle="Images (PNG, JPG) or PDF"
+            title={t('form.uploadTitle')}
+            subtitle={t('form.uploadSubtitle')}
           />
         )}
       </div>
@@ -235,7 +237,7 @@ export function GradingForm({ onSubmit, isLoading }: GradingFormProps) {
       <div>
         <div className="flex items-center justify-between mb-2">
           <label className="text-sm font-medium text-slate-700 flex items-center gap-2">
-            <FileText className="w-4 h-4" /> Erwartungshorizont (Expected Solution)
+            <FileText className="w-4 h-4" /> {t('form.expected')}
           </label>
           <div className="flex bg-slate-100 rounded-lg p-1">
             <button
@@ -243,14 +245,14 @@ export function GradingForm({ onSubmit, isLoading }: GradingFormProps) {
               onClick={() => setExpectedType('text')}
               className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${expectedType === 'text' ? 'bg-white text-primary shadow-sm' : 'text-slate-600 hover:text-slate-900'}`}
             >
-              <Type className="w-3.5 h-3.5" /> Text
+              <Type className="w-3.5 h-3.5" /> {t('form.text')}
             </button>
             <button
               type="button"
               onClick={() => setExpectedType('file')}
               className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${expectedType === 'file' ? 'bg-white text-primary shadow-sm' : 'text-slate-600 hover:text-slate-900'}`}
             >
-              <FileUp className="w-3.5 h-3.5" /> File
+              <FileUp className="w-3.5 h-3.5" /> {t('form.file')}
             </button>
           </div>
         </div>
@@ -258,7 +260,7 @@ export function GradingForm({ onSubmit, isLoading }: GradingFormProps) {
         {expectedType === 'text' ? (
           <textarea
             className="w-full p-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent resize-none h-32"
-            placeholder="Enter the expected solution or grading criteria here..."
+            placeholder={t('form.expectedPlaceholder')}
             value={expectedText}
             onChange={(e) => setExpectedText(e.target.value)}
             required
@@ -268,8 +270,8 @@ export function GradingForm({ onSubmit, isLoading }: GradingFormProps) {
             file={expectedFile}
             onFileChange={setExpectedFile}
             accept="image/*,application/pdf"
-            title="Click to upload or drag and drop"
-            subtitle="Images (PNG, JPG) or PDF"
+            title={t('form.uploadTitle')}
+            subtitle={t('form.uploadSubtitle')}
           />
         )}
       </div>
@@ -277,14 +279,14 @@ export function GradingForm({ onSubmit, isLoading }: GradingFormProps) {
       {/* Student Submission Section */}
       <div>
         <label className="block text-sm font-medium text-slate-700 mb-2 flex items-center gap-2">
-          <ImageIcon className="w-4 h-4" /> Schülerarbeit (Student Submission)
+          <ImageIcon className="w-4 h-4" /> {t('form.studentSubmission')}
         </label>
         <MultiFileDropzone
           files={studentFiles}
           onFilesChange={setStudentFiles}
           accept="image/*,application/pdf"
-          title="Click to upload or drag and drop"
-          subtitle="Images (PNG, JPG) or PDF. Multiple files allowed."
+          title={t('form.uploadTitle')}
+          subtitle={t('form.uploadMultipleSubtitle')}
         />
       </div>
 
@@ -295,11 +297,11 @@ export function GradingForm({ onSubmit, isLoading }: GradingFormProps) {
       >
         {isLoading ? (
           <>
-            <Loader2 className="w-5 h-5 animate-spin" /> Analyzing...
+            <Loader2 className="w-5 h-5 animate-spin" /> {t('form.analyzing')}
           </>
         ) : (
           <>
-            <Send className="w-5 h-5" /> Grade Submission
+            <Send className="w-5 h-5" /> {t('form.submit')}
           </>
         )}
       </button>
