@@ -12,7 +12,7 @@ function App() {
   const [result, setResult] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const handleGrade = async (task: string | File, expected: string | File, file: File) => {
+  const handleGrade = async (task: string | File, expected: string | File, files: File[]) => {
     if (!apiKey) return;
     
     setIsLoading(true);
@@ -20,7 +20,7 @@ function App() {
     setError(null);
     
     try {
-      const response = await gradeSubmission(apiKey, task, expected, file);
+      const response = await gradeSubmission(apiKey, task, expected, files);
       setResult(response);
     } catch (err) {
       console.error('Grading error:', err);
