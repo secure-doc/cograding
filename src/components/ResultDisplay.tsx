@@ -1,5 +1,6 @@
 import { CheckCircle2, AlertCircle } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
+import { useTranslation } from 'react-i18next';
 
 interface ResultDisplayProps {
   result: string | null;
@@ -7,6 +8,8 @@ interface ResultDisplayProps {
 }
 
 export function ResultDisplay({ result, error }: ResultDisplayProps) {
+  const { t } = useTranslation();
+  
   if (!result && !error) return null;
 
   return (
@@ -15,12 +18,12 @@ export function ResultDisplay({ result, error }: ResultDisplayProps) {
         {error ? (
           <>
             <AlertCircle className="w-6 h-6 text-red-500" />
-            <h3 className="text-xl font-semibold text-red-800">Error Occurred</h3>
+            <h3 className="text-xl font-semibold text-red-800">{t('result.error')}</h3>
           </>
         ) : (
           <>
             <CheckCircle2 className="w-6 h-6 text-green-600" />
-            <h3 className="text-xl font-semibold text-green-800">Grading Result</h3>
+            <h3 className="text-xl font-semibold text-green-800">{t('result.success')}</h3>
           </>
         )}
       </div>
