@@ -4,7 +4,7 @@ import { ApiKeyModal } from './components/ApiKeyModal';
 import { SettingsModal } from './components/SettingsModal';
 import { GradingForm } from './components/GradingForm';
 import { ResultDisplay } from './components/ResultDisplay';
-import { gradeSubmission } from './services/gemini';
+import { gradeSubmission, type ProgressData } from './services/gemini';
 import { GraduationCap, LogOut, Settings } from 'lucide-react';
 import { useSystemPrompt } from './hooks/useSystemPrompt';
 import { useTranslation } from 'react-i18next';
@@ -15,6 +15,7 @@ function App() {
   const { systemPrompt, setSystemPrompt, resetSystemPrompt } = useSystemPrompt();
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [progress, setProgress] = useState<ProgressData | null>(null);
   const [result, setResult] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -22,17 +23,19 @@ function App() {
     if (!apiKey) return;
     
     setIsLoading(true);
+    setProgress(null);
     setResult(null);
     setError(null);
     
     try {
-      const response = await gradeSubmission(apiKey, systemPrompt, task, expected, files);
+      const response = await gradeSubmission(apiKey, systemPrompt, task, expected, files, setProgress);
       setResult(response);
     } catch (err) {
       console.error('Grading error:', err);
       setError(err instanceof Error ? err.message : 'An unexpected error occurred during grading.');
     } finally {
       setIsLoading(false);
+      setProgress(null);
     }
   };
 
@@ -107,7 +110,7 @@ function App() {
           </p>
         </div>
 
-        <GradingForm onSubmit={handleGrade} isLoading={isLoading} />
+        <GradingForm onSubmit={handleGrade} isLoading={isLoading} progress={progress} />
         
         <ResultDisplay result={result} error={error} />
       </main>

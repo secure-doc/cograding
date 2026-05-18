@@ -43,6 +43,13 @@ const resources = {
         reset: 'Reset to Default',
         cancel: 'Cancel',
         save: 'Save',
+      },
+      progress: {
+        fetchingModels: 'Initializing models...',
+        extractTask: 'Reading task description...',
+        extractExpected: 'Reading expected solution...',
+        extractStudent: 'Analyzing student submission {{current}} of {{total}}...',
+        grading: 'Grading submission...',
       }
     }
   },
@@ -86,6 +93,13 @@ const resources = {
         reset: 'Auf Standard zurücksetzen',
         cancel: 'Abbrechen',
         save: 'Speichern',
+      },
+      progress: {
+        fetchingModels: 'Initialisiere Modelle...',
+        extractTask: 'Lese Aufgabenstellung...',
+        extractExpected: 'Lese Erwartungshorizont...',
+        extractStudent: 'Analysiere Schülerarbeit {{current}} von {{total}}...',
+        grading: 'Bewerte Ergebnisse...',
       }
     }
   }

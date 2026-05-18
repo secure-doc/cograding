@@ -1,10 +1,13 @@
 import { useState, useRef } from 'react';
-import { Upload, FileText, Send, Loader2, Image as ImageIcon, Type, FileUp } from 'lucide-react';
+import { Upload, FileText, Send, Loader2, Image as ImageIcon, Type, FileUp, X } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+
+import type { ProgressData } from '../services/gemini';
 
 interface GradingFormProps {
   onSubmit: (task: string | File, expected: string | File, files: File[]) => Promise<void>;
   isLoading: boolean;
+  progress?: ProgressData | null;
 }
 
 function FileDropzone({ 
@@ -111,54 +114,86 @@ function MultiFileDropzone({
     e.stopPropagation();
     setDragActive(false);
     if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-      onFilesChange(Array.from(e.dataTransfer.files));
+      onFilesChange([...files, ...Array.from(e.dataTransfer.files)]);
     }
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     e.preventDefault();
     if (e.target.files && e.target.files.length > 0) {
-      onFilesChange(Array.from(e.target.files));
+      onFilesChange([...files, ...Array.from(e.target.files)]);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = ''; // Reset input to allow selecting the same file again
+      }
     }
   };
 
+  const removeFile = (index: number, e: React.MouseEvent) => {
+    e.stopPropagation();
+    const newFiles = [...files];
+    newFiles.splice(index, 1);
+    onFilesChange(newFiles);
+  };
+
   return (
-    <div 
-      className={`relative border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-colors ${dragActive ? 'border-primary bg-primary/5' : 'border-slate-300 hover:border-primary/50'}`}
-      onDragEnter={handleDrag}
-      onDragLeave={handleDrag}
-      onDragOver={handleDrag}
-      onDrop={handleDrop}
-      onClick={() => fileInputRef.current?.click()}
-    >
-      <input
-        ref={fileInputRef}
-        type="file"
-        multiple
-        className="hidden"
-        accept={accept}
-        onChange={handleChange}
-      />
-      <div className="flex flex-col items-center gap-2 text-slate-500">
-        <Upload className="w-8 h-8 text-slate-400" />
-        {files.length > 0 ? (
-          <div className="flex flex-col items-center max-h-32 overflow-y-auto w-full px-4 space-y-1">
-            {files.map((f, i) => (
-              <span key={i} className="font-medium text-primary truncate w-full text-center" title={f.name}>{f.name}</span>
-            ))}
-          </div>
-        ) : (
-          <>
-            <p className="font-medium">{title}</p>
-            <p className="text-xs">{subtitle}</p>
-          </>
-        )}
+    <div className="space-y-4">
+      <div 
+        className={`relative border-2 border-dashed rounded-lg p-6 text-center cursor-pointer transition-colors ${dragActive ? 'border-primary bg-primary/5' : 'border-slate-300 hover:border-primary/50'}`}
+        onDragEnter={handleDrag}
+        onDragLeave={handleDrag}
+        onDragOver={handleDrag}
+        onDrop={handleDrop}
+        onClick={() => fileInputRef.current?.click()}
+      >
+        <input
+          ref={fileInputRef}
+          type="file"
+          multiple
+          className="hidden"
+          accept={accept}
+          onChange={handleChange}
+        />
+        <div className="flex flex-col items-center gap-2 text-slate-500">
+          <Upload className="w-8 h-8 text-slate-400" />
+          <p className="font-medium">{title}</p>
+          <p className="text-xs">{subtitle}</p>
+        </div>
       </div>
+
+      {files.length > 0 && (
+        <div className="bg-slate-50 border border-slate-200 rounded-lg p-4">
+          <p className="text-sm font-medium text-slate-700 mb-3 flex justify-between items-center">
+            <span>{files.length} {files.length === 1 ? 'Datei' : 'Dateien'} ausgewählt:</span>
+            <button 
+              type="button"
+              onClick={() => onFilesChange([])}
+              className="text-xs text-slate-500 hover:text-red-500"
+            >
+              Alle löschen
+            </button>
+          </p>
+          <ul className="max-h-48 overflow-y-auto space-y-2 pr-2">
+            {files.map((f, i) => (
+              <li key={i} className="flex items-center justify-between bg-white border border-slate-200 rounded px-3 py-2 text-sm shadow-sm">
+                <span className="truncate flex-1 font-medium text-slate-700" title={f.name}>{f.name}</span>
+                <button 
+                  type="button"
+                  onClick={(e) => removeFile(i, e)}
+                  className="ml-3 text-slate-400 hover:text-red-500 p-1 transition-colors"
+                  title="Entfernen"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
     </div>
   );
 }
 
-export function GradingForm({ onSubmit, isLoading }: GradingFormProps) {
+export function GradingForm({ onSubmit, isLoading, progress }: GradingFormProps) {
   const { t } = useTranslation();
   const [taskType, setTaskType] = useState<'text' | 'file'>('text');
   const [taskText, setTaskText] = useState('');
@@ -290,21 +325,33 @@ export function GradingForm({ onSubmit, isLoading }: GradingFormProps) {
         />
       </div>
 
-      <button
-        type="submit"
-        disabled={isLoading || !isFormValid()}
-        className="w-full flex items-center justify-center gap-2 bg-primary hover:bg-primary-hover text-white font-medium py-3 px-4 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-      >
-        {isLoading ? (
-          <>
-            <Loader2 className="w-5 h-5 animate-spin" /> {t('form.analyzing')}
-          </>
-        ) : (
-          <>
-            <Send className="w-5 h-5" /> {t('form.submit')}
-          </>
+      <div className="space-y-3">
+        <button
+          type="submit"
+          disabled={isLoading || !isFormValid()}
+          className="w-full flex items-center justify-center gap-2 bg-primary hover:bg-primary-hover text-white font-medium py-3 px-4 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          {isLoading ? (
+            <>
+              <Loader2 className="w-5 h-5 animate-spin" /> 
+              {progress ? t(progress.key, { current: progress.current, total: progress.total }) : t('form.analyzing')}
+            </>
+          ) : (
+            <>
+              <Send className="w-5 h-5" /> {t('form.submit')}
+            </>
+          )}
+        </button>
+
+        {isLoading && progress && (
+          <div className="w-full bg-slate-100 rounded-full h-2.5 overflow-hidden">
+            <div 
+              className="bg-primary h-2.5 rounded-full transition-all duration-300 ease-in-out" 
+              style={{ width: `${progress.percentage}%` }}
+            ></div>
+          </div>
         )}
-      </button>
+      </div>
     </form>
   );
 }
