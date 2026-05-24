@@ -113,7 +113,7 @@ const extractTextFromFile = async (file: File, genAI: GoogleGenerativeAI, flashM
   const model = genAI.getGenerativeModel({ model: flashModelName });
   const part = await fileToGenerativePart(file);
 
-  let prompt = "Extract all text from this document accurately. Do not add any extra explanations, just output the extracted text.";
+  let prompt = "Extract all text from this document accurately. Preserve line breaks exactly as they appear in the original document. Do not add any extra explanations, just output the extracted text.";
   if (file.type.includes('pdf')) {
     prompt = "Extract all text from this PDF accurately. Preserve the structure where possible. Do not add any extra explanations, just output the extracted text.";
   } else if (file.type.includes('image')) {
@@ -123,6 +123,26 @@ const extractTextFromFile = async (file: File, genAI: GoogleGenerativeAI, flashM
   const result = await withRetry(() => model.generateContent([prompt, part]));
   return result.response.text();
 };
+
+export interface CorrectionComment {
+  line: number;
+  text: string;
+}
+
+export interface PageResult {
+  file: File;
+  extractedText: string;
+  comments: {
+    rechtschreibung: CorrectionComment[];
+    sprache: CorrectionComment[];
+    inhalt: CorrectionComment[];
+  };
+}
+
+export interface GradingResult {
+  overallFeedback: string;
+  pages: PageResult[];
+}
 
 export interface ProgressData {
   percentage: number;
@@ -138,7 +158,7 @@ export const gradeSubmission = async (
   expectedSolution: string | File,
   studentFiles: File[],
   onProgress?: (progress: ProgressData) => void
-) => {
+): Promise<GradingResult> => {
   const genAI = new GoogleGenerativeAI(apiKey);
 
   const totalSteps = 4 + studentFiles.length;
@@ -189,22 +209,82 @@ export const gradeSubmission = async (
 
   currentStep++;
   updateProgress('progress.grading');
+
+  // Enforce JSON schema
+  const jsonSchemaInstruction = `\n\nCRITICAL FORMAT REQUIREMENT: You MUST output your response strictly as a JSON object matching this schema:
+{
+  "overallFeedback": "Your general feedback and grading summary. Use Markdown for formatting.",
+  "pages": [
+    {
+      "pageIndex": 0,
+      "comments": {
+        "rechtschreibung": [
+          { "line": 1, "text": "First spelling comment" },
+          { "line": 5, "text": "Second spelling comment" }
+        ],
+        "sprache": [
+          { "line": 2, "text": "Grammar/language comment" }
+        ],
+        "inhalt": [
+          { "line": 3, "text": "Content logic comment" }
+        ]
+      }
+    }
+  ]
+}
+IMPORTANT RULES:
+- Include an entry in the "pages" array for EACH file provided. The pageIndex should start at 0.
+- For "rechtschreibung" and "sprache", include ALL identified mistakes.
+- For "inhalt", this is the most critical part for justifying the grading. You MUST provide at least 5 content-related comments per page (including both positive aspects and negative/missing aspects).
+- Ensure line numbers correspond accurately to the line numbers provided in the text.`;
+
   // 4. Perform Grading using the Pro model
   const gradingModel = genAI.getGenerativeModel({
     model: proModel,
-    systemInstruction: systemPrompt
+    systemInstruction: systemPrompt + jsonSchemaInstruction,
+    generationConfig: {
+      responseMimeType: "application/json"
+    }
   });
 
   const promptParts: string[] = [];
   promptParts.push("Aufgabenstellung:\n" + taskText + "\n\n");
   promptParts.push("Erwartungshorizont:\n" + expectedText + "\n\n");
 
+  const numberedStudentTexts = studentTexts.map(text => 
+    text.split('\n').map((line, idx) => `${idx + 1} | ${line}`).join('\n')
+  );
+
   promptParts.push("Schülerarbeit:\n");
-  studentTexts.forEach((text, i) => {
-    promptParts.push(`Datei ${i + 1}:\n${text}\n\n`);
+  numberedStudentTexts.forEach((text, i) => {
+    promptParts.push(`Datei ${i} (pageIndex: ${i}):\n${text}\n\n`);
   });
 
   const result = await withRetry(() => gradingModel.generateContent(promptParts));
   const response = await result.response;
-  return response.text();
+  
+  let parsedResult: any = { overallFeedback: response.text(), pages: [] };
+  try {
+    parsedResult = JSON.parse(response.text());
+  } catch (e) {
+    console.error("Failed to parse JSON grading response", e);
+  }
+  
+  const pages = studentFiles.map((file, i) => {
+    const pageData = parsedResult.pages?.find((p: any) => p.pageIndex === i) || { comments: {} };
+    return {
+      file,
+      extractedText: numberedStudentTexts[i],
+      comments: {
+        rechtschreibung: pageData.comments?.rechtschreibung || [],
+        sprache: pageData.comments?.sprache || [],
+        inhalt: pageData.comments?.inhalt || [],
+      }
+    };
+  });
+
+  return {
+    overallFeedback: parsedResult.overallFeedback || '',
+    pages
+  };
 };

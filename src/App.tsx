@@ -16,7 +16,7 @@ function App() {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [progress, setProgress] = useState<ProgressData | null>(null);
-  const [result, setResult] = useState<string | null>(null);
+  const [result, setResult] = useState<import('./services/gemini').GradingResult | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const handleGrade = async (task: string | File, expected: string | File, files: File[]) => {
@@ -102,7 +102,7 @@ function App() {
         </div>
       </header>
 
-      <main className="flex-1 max-w-3xl w-full mx-auto p-4 py-8">
+      <main className="flex-1 max-w-5xl w-full mx-auto p-4 py-8">
         <div className="mb-8">
           <h2 className="text-3xl font-bold text-slate-900 mb-3">{t('app.gradeSubmission')}</h2>
           <p className="text-slate-600 text-lg">
