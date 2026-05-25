@@ -35,19 +35,23 @@ CRITICAL FORMAT REQUIREMENT: You MUST output your response strictly as a JSON ob
       "pageIndex": 0,
       "comments": {
         "rechtschreibung": [
-          { "line": 1, "text": "Spelling/typo comment for line 1" }
+          { "line": 1, "text": "First spelling comment" },
+          { "line": 5, "text": "Second spelling comment" }
         ],
         "sprache": [
-          { "line": 2, "text": "Grammar/language comment for line 2" }
+          { "line": 2, "text": "Grammar/language comment" }
         ],
         "inhalt": [
-          { "line": 3, "text": "Content/logic comment for line 3" }
+          { "line": 3, "text": "Content logic comment" }
         ]
       }
     }
   ]
 }
-Include an entry in the "pages" array for EACH file provided. The pageIndex should start at 0. Ensure line numbers correspond accurately to the line numbers provided in the text.`,generationConfig:{responseMimeType:`application/json`}}),_=[];_.push(`Aufgabenstellung:
+IMPORTANT RULES:
+- Include an entry in the "pages" array for EACH file provided. The pageIndex should start at 0.
+- For "rechtschreibung", "sprache", and "inhalt", you must include ALL identified mistakes or comments as separate objects in the respective arrays. Do not limit yourself to one comment per category.
+- Ensure line numbers correspond accurately to the line numbers provided in the text.`,generationConfig:{responseMimeType:`application/json`}}),_=[];_.push(`Aufgabenstellung:
 `+p+`
 
 `),_.push(`Erwartungshorizont:
