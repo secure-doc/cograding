@@ -1,4 +1,5 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
+import type { GradingRules } from '../hooks/useGradingRules';
 
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
@@ -133,9 +134,9 @@ export interface PageResult {
   file: File;
   extractedText: string;
   comments: {
-    rechtschreibung: CorrectionComment[];
-    sprache: CorrectionComment[];
-    inhalt: CorrectionComment[];
+    spelling: CorrectionComment[];
+    language: CorrectionComment[];
+    content: CorrectionComment[];
   };
 }
 
@@ -154,6 +155,7 @@ export interface ProgressData {
 export const gradeSubmission = async (
   apiKey: string,
   systemPrompt: string,
+  rules: GradingRules,
   taskDescription: string | File,
   expectedSolution: string | File,
   studentFiles: File[],
@@ -218,15 +220,17 @@ export const gradeSubmission = async (
     {
       "pageIndex": 0,
       "comments": {
-        "rechtschreibung": [
+        "spelling": [
           { "line": 1, "text": "First spelling comment" },
           { "line": 5, "text": "Second spelling comment" }
         ],
-        "sprache": [
-          { "line": 2, "text": "Grammar/language comment" }
+        "language": [
+          { "line": 2, "text": "First Grammar/language comment" },
+		  { "line": 8, "text": "Second Grammar/language comment" }
         ],
-        "inhalt": [
-          { "line": 3, "text": "Content logic comment" }
+        "content": [
+          { "line": 3, "text": "First Content logic comment" },
+		  { "line": 10, "text": "Second Content logic comment" },
         ]
       }
     }
@@ -234,8 +238,9 @@ export const gradeSubmission = async (
 }
 IMPORTANT RULES:
 - Include an entry in the "pages" array for EACH file provided. The pageIndex should start at 0.
-- For "rechtschreibung" and "sprache", include ALL identified mistakes.
-- For "inhalt", this is the most critical part for justifying the grading. You MUST provide at least 5 content-related comments per page (including both positive aspects and negative/missing aspects).
+- ${rules.spelling}
+- ${rules.language}
+- ${rules.content}
 - Ensure line numbers correspond accurately to the line numbers provided in the text.`;
 
   // 4. Perform Grading using the Pro model
@@ -276,9 +281,9 @@ IMPORTANT RULES:
       file,
       extractedText: numberedStudentTexts[i],
       comments: {
-        rechtschreibung: pageData.comments?.rechtschreibung || [],
-        sprache: pageData.comments?.sprache || [],
-        inhalt: pageData.comments?.inhalt || [],
+        spelling: pageData.comments?.spelling || [],
+        language: pageData.comments?.language || [],
+        content: pageData.comments?.content || [],
       }
     };
   });

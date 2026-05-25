@@ -90,12 +90,12 @@ export function ResultDisplay({ result, error }: ResultDisplayProps) {
 }
 
 function PageComments({ comments }: { comments: GradingResult['pages'][0]['comments'] }) {
-  const [activeTab, setActiveTab] = useState<'rechtschreibung' | 'sprache' | 'inhalt'>('rechtschreibung');
+  const [activeTab, setActiveTab] = useState<'spelling' | 'language' | 'content'>('spelling');
 
   const tabs = [
-    { id: 'rechtschreibung', label: 'Rechtschreibung' },
-    { id: 'sprache', label: 'Sprache' },
-    { id: 'inhalt', label: 'Inhalt' },
+    { id: 'spelling', label: 'Rechtschreibung' },
+    { id: 'language', label: 'Sprache' },
+    { id: 'content', label: 'Inhalt' },
   ] as const;
 
   const activeComments = comments ? comments[activeTab] || [] : [];
