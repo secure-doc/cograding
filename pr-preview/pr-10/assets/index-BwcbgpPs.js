@@ -50,7 +50,8 @@ CRITICAL FORMAT REQUIREMENT: You MUST output your response strictly as a JSON ob
 }
 IMPORTANT RULES:
 - Include an entry in the "pages" array for EACH file provided. The pageIndex should start at 0.
-- For "rechtschreibung", "sprache", and "inhalt", you must include ALL identified mistakes or comments as separate objects in the respective arrays. Do not limit yourself to one comment per category.
+- For "rechtschreibung" and "sprache", include ALL identified mistakes.
+- For "inhalt", this is the most critical part for justifying the grading. You MUST provide at least 5 content-related comments per page (including both positive aspects and negative/missing aspects).
 - Ensure line numbers correspond accurately to the line numbers provided in the text.`,generationConfig:{responseMimeType:`application/json`}}),_=[];_.push(`Aufgabenstellung:
 `+p+`
 
