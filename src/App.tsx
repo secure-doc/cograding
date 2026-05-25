@@ -7,12 +7,14 @@ import { ResultDisplay } from './components/ResultDisplay';
 import { gradeSubmission, type ProgressData } from './services/gemini';
 import { GraduationCap, LogOut, Settings } from 'lucide-react';
 import { useSystemPrompt } from './hooks/useSystemPrompt';
+import { useGradingRules } from './hooks/useGradingRules';
 import { useTranslation } from 'react-i18next';
 
 function App() {
   const { t, i18n } = useTranslation();
   const { apiKey, setApiKey } = useApiKey();
   const { systemPrompt, setSystemPrompt, resetSystemPrompt } = useSystemPrompt();
+  const { rules, setRules, resetRules } = useGradingRules();
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [progress, setProgress] = useState<ProgressData | null>(null);
@@ -28,7 +30,7 @@ function App() {
     setError(null);
     
     try {
-      const response = await gradeSubmission(apiKey, systemPrompt, task, expected, files, setProgress);
+      const response = await gradeSubmission(apiKey, systemPrompt, rules, task, expected, files, setProgress);
       setResult(response);
     } catch (err) {
       console.error('Grading error:', err);
@@ -52,8 +54,15 @@ function App() {
         isOpen={isSettingsOpen} 
         onClose={() => setIsSettingsOpen(false)} 
         systemPrompt={systemPrompt}
-        onSave={setSystemPrompt}
-        onReset={resetSystemPrompt}
+        gradingRules={rules}
+        onSave={(prompt, newRules) => {
+          setSystemPrompt(prompt);
+          setRules(newRules);
+        }}
+        onReset={() => {
+          resetSystemPrompt();
+          resetRules();
+        }}
       />
       
       <header className="bg-white border-b border-slate-200 sticky top-0 z-10">
