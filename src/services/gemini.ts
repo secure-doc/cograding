@@ -1,7 +1,28 @@
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import { GoogleGenerativeAI, type GenerativeModel, type GenerationConfig, type Part } from '@google/generative-ai';
 import type { GradingRules } from '../hooks/useGradingRules';
 
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
+/**
+ * Error with an i18n key so the UI can show a translated, actionable message.
+ */
+export class GradingError extends Error {
+  readonly key: string;
+  readonly params: Record<string, unknown>;
+
+  constructor(key: string, params: Record<string, unknown> = {}, cause?: unknown) {
+    super(key, { cause });
+    this.name = 'GradingError';
+    this.key = key;
+    this.params = params;
+  }
+}
+
+// The SDK throws "Candidate was blocked due to <REASON>" from response.text().
+// Waiting does not help for these, so they must not go through the rate-limit retry.
+const errorMessage = (error: unknown) => (error instanceof Error ? error.message : String(error ?? ''));
+const isBlockedCandidateError = (error: unknown) => /Candidate was blocked due to/i.test(errorMessage(error));
+const isRecitationError = (error: unknown) => /blocked due to RECITATION/i.test(errorMessage(error));
 
 const withRetry = async <T>(fn: () => Promise<T>, maxRetries = 5, defaultDelayMs = 5000): Promise<T> => {
   let attempt = 0;
@@ -10,7 +31,7 @@ const withRetry = async <T>(fn: () => Promise<T>, maxRetries = 5, defaultDelayMs
       return await fn();
     } catch (error: any) {
       attempt++;
-      if (attempt > maxRetries) {
+      if (attempt > maxRetries || isBlockedCandidateError(error)) {
         throw error;
       }
 
@@ -110,6 +131,42 @@ export const fileToGenerativePart = async (file: File) => {
   return { inlineData: { data: base64Data, mimeType: file.type } };
 };
 
+interface GenerationAttempt {
+  parts: (string | Part)[];
+  generationConfig?: GenerationConfig;
+  postProcess?: (text: string) => string;
+}
+
+/**
+ * Runs the attempts in order. Gemini's RECITATION filter is non-deterministic and depends on
+ * the exact output, so a different prompt variant / temperature usually gets through.
+ * Throws the last recitation error if every attempt was blocked.
+ */
+const generateTextWithRecitationFallback = async (model: GenerativeModel, attempts: GenerationAttempt[]) => {
+  let lastError: unknown;
+  for (let i = 0; i < attempts.length; i++) {
+    const { parts, generationConfig, postProcess } = attempts[i];
+    try {
+      const text = await withRetry(async () => {
+        const result = await model.generateContent({ contents: [{ role: 'user', parts: toParts(parts) }], generationConfig });
+        return result.response.text();
+      });
+      return postProcess ? postProcess(text) : text;
+    } catch (error) {
+      if (!isRecitationError(error)) throw error;
+      lastError = error;
+      console.warn(`Gemini blocked the response due to RECITATION (attempt ${i + 1}/${attempts.length}), trying a variant...`);
+    }
+  }
+  throw lastError;
+};
+
+const toParts = (parts: (string | Part)[]): Part[] => parts.map(p => (typeof p === 'string' ? { text: p } : p));
+
+// Matches the "12 | " prefix we ask for in the line-numbered fallback prompt.
+const LINE_NUMBER_PREFIX = /^\s*\d+\s*\|\s?/;
+const stripLineNumbers = (text: string) => text.split('\n').map(line => line.replace(LINE_NUMBER_PREFIX, '')).join('\n');
+
 const extractTextFromFile = async (file: File, genAI: GoogleGenerativeAI, flashModelName: string) => {
   const model = genAI.getGenerativeModel({ model: flashModelName });
   const part = await fileToGenerativePart(file);
@@ -121,8 +178,18 @@ const extractTextFromFile = async (file: File, genAI: GoogleGenerativeAI, flashM
     prompt = "Extract all text from this image accurately (OCR). Do not add any extra explanations, just output the extracted text.";
   }
 
-  const result = await withRetry(() => model.generateContent([prompt, part]));
-  return result.response.text();
+  // Fallback: a verbatim transcription of a known text (poem, textbook excerpt, quotes in an essay)
+  // trips the RECITATION filter. Prefixing every line with its number changes the output enough
+  // to pass; the prefixes are stripped again afterwards.
+  const numberedPrompt = "Transcribe this document line by line (OCR) for a teacher who grades a student's handwritten work. " +
+    "Prefix EVERY line with its line number followed by ' | ' (e.g. '1 | ...'). Keep the student's original wording and spelling mistakes. " +
+    "Do not add any extra explanations, just output the numbered lines.";
+
+  return generateTextWithRecitationFallback(model, [
+    { parts: [prompt, part] },
+    { parts: [numberedPrompt, part], generationConfig: { temperature: 0.4 }, postProcess: stripLineNumbers },
+    { parts: [numberedPrompt, part], generationConfig: { temperature: 1.0 }, postProcess: stripLineNumbers },
+  ]);
 };
 
 export interface CorrectionComment {
@@ -183,29 +250,43 @@ export const gradeSubmission = async (
   const { flashModel, proModel } = await getModelNames(apiKey);
   console.log(`Selected Models - Extraction: ${flashModel}, Grading: ${proModel}`);
 
-  // 2. Helper to resolve strings or files to text
-  const resolveToText = async (input: string | File) => {
+  // 2. Helper to resolve task / expected solution to prompt content.
+  // If the transcription is blocked by the RECITATION filter (e.g. the task quotes a well-known text),
+  // the file itself is handed to the grading model instead - it only needs to understand it, not reproduce it.
+  const resolveToContext = async (input: string | File): Promise<string | Part> => {
     if (typeof input === 'string') return input;
-    return extractTextFromFile(input, genAI, flashModel);
+    try {
+      return await extractTextFromFile(input, genAI, flashModel);
+    } catch (error) {
+      if (!isRecitationError(error)) throw error;
+      console.warn(`Text extraction of "${input.name}" blocked due to RECITATION, passing the file to the grading model directly.`);
+      return fileToGenerativePart(input);
+    }
   };
 
   // 3. Extract text from all inputs sequentially to avoid RPM rate limits
   currentStep++;
   updateProgress('progress.extractTask');
-  const taskText = await resolveToText(taskDescription);
+  const taskContext = await resolveToContext(taskDescription);
   if (typeof taskDescription !== 'string') await sleep(4000);
 
   currentStep++;
   updateProgress('progress.extractExpected');
-  const expectedText = await resolveToText(expectedSolution);
+  const expectedContext = await resolveToContext(expectedSolution);
   if (typeof expectedSolution !== 'string') await sleep(4000);
 
   const studentTexts: string[] = [];
   for (let i = 0; i < studentFiles.length; i++) {
     currentStep++;
     updateProgress('progress.extractStudent', i + 1, studentFiles.length);
-    const text = await resolveToText(studentFiles[i]);
-    studentTexts.push(text);
+    try {
+      studentTexts.push(await extractTextFromFile(studentFiles[i], genAI, flashModel));
+    } catch (error) {
+      if (isRecitationError(error)) {
+        throw new GradingError('errors.recitationStudent', { index: i + 1, name: studentFiles[i].name }, error);
+      }
+      throw error;
+    }
     await sleep(4000); // 4 second delay = 15 RPM exactly
   }
 
@@ -241,20 +322,25 @@ IMPORTANT RULES:
 - ${rules.spelling}
 - ${rules.language}
 - ${rules.content}
-- Ensure line numbers correspond accurately to the line numbers provided in the text.`;
+- Ensure line numbers correspond accurately to the line numbers provided in the text.
+- Do not reproduce longer passages of the provided texts verbatim. Refer to line numbers and quote at most a few words.`;
 
   // 4. Perform Grading using the Pro model
   const gradingModel = genAI.getGenerativeModel({
     model: proModel,
     systemInstruction: systemPrompt + jsonSchemaInstruction,
-    generationConfig: {
-      responseMimeType: "application/json"
-    }
   });
 
-  const promptParts: string[] = [];
-  promptParts.push("Aufgabenstellung:\n" + taskText + "\n\n");
-  promptParts.push("Erwartungshorizont:\n" + expectedText + "\n\n");
+  const promptParts: (string | Part)[] = [];
+  const pushContext = (label: string, context: string | Part) => {
+    if (typeof context === 'string') {
+      promptParts.push(`${label}:\n${context}\n\n`);
+    } else {
+      promptParts.push(`${label} (siehe angehängte Datei):\n`, context, '\n\n');
+    }
+  };
+  pushContext('Aufgabenstellung', taskContext);
+  pushContext('Erwartungshorizont', expectedContext);
 
   const numberedStudentTexts = studentTexts.map(text => 
     text.split('\n').map((line, idx) => `${idx + 1} | ${line}`).join('\n')
@@ -265,12 +351,21 @@ IMPORTANT RULES:
     promptParts.push(`Datei ${i} (pageIndex: ${i}):\n${text}\n\n`);
   });
 
-  const result = await withRetry(() => gradingModel.generateContent(promptParts));
-  const response = await result.response;
-  
-  let parsedResult: any = { overallFeedback: response.text(), pages: [] };
+  let responseText: string;
   try {
-    parsedResult = JSON.parse(response.text());
+    responseText = await generateTextWithRecitationFallback(gradingModel, [
+      { parts: promptParts, generationConfig: { responseMimeType: 'application/json' } },
+      { parts: promptParts, generationConfig: { responseMimeType: 'application/json', temperature: 1.0 } },
+      { parts: promptParts, generationConfig: { responseMimeType: 'application/json', temperature: 1.3 } },
+    ]);
+  } catch (error) {
+    if (isRecitationError(error)) throw new GradingError('errors.recitationGrading', {}, error);
+    throw error;
+  }
+
+  let parsedResult: any = { overallFeedback: responseText, pages: [] };
+  try {
+    parsedResult = JSON.parse(responseText);
   } catch (e) {
     console.error("Failed to parse JSON grading response", e);
   }

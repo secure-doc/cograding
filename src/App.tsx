@@ -4,7 +4,7 @@ import { ApiKeyModal } from './components/ApiKeyModal';
 import { SettingsModal } from './components/SettingsModal';
 import { GradingForm } from './components/GradingForm';
 import { ResultDisplay } from './components/ResultDisplay';
-import { gradeSubmission, type ProgressData } from './services/gemini';
+import { gradeSubmission, GradingError, type ProgressData } from './services/gemini';
 import { GraduationCap, LogOut, Settings } from 'lucide-react';
 import { useSystemPrompt } from './hooks/useSystemPrompt';
 import { useGradingRules } from './hooks/useGradingRules';
@@ -34,7 +34,11 @@ function App() {
       setResult(response);
     } catch (err) {
       console.error('Grading error:', err);
-      setError(err instanceof Error ? err.message : 'An unexpected error occurred during grading.');
+      if (err instanceof GradingError) {
+        setError(t(err.key, err.params));
+      } else {
+        setError(err instanceof Error ? err.message : 'An unexpected error occurred during grading.');
+      }
     } finally {
       setIsLoading(false);
       setProgress(null);
