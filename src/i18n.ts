@@ -36,6 +36,10 @@ const resources = {
         error: 'Error Occurred',
         success: 'Grading Result',
       },
+      errors: {
+        recitationStudent: 'Student submission {{index}} ("{{name}}") could not be read: Gemini blocked the transcription because the text closely resembles an existing published work (e.g. a quoted poem or textbook passage). Please try again, or upload a different scan or crop of this page.',
+        recitationGrading: 'Gemini blocked the grading result because it closely resembled an existing published work. Please try again.',
+      },
       settings: {
         title: 'Settings',
         systemPrompt: 'System Prompt',
@@ -88,6 +92,10 @@ const resources = {
       result: {
         error: 'Ein Fehler ist aufgetreten',
         success: 'Korrekturergebnis',
+      },
+      errors: {
+        recitationStudent: 'Schülerarbeit {{index}} („{{name}}“) konnte nicht gelesen werden: Gemini hat die Texterkennung blockiert, weil der Text einem veröffentlichten Werk stark ähnelt (z. B. ein zitiertes Gedicht oder ein Lehrbuchauszug). Bitte erneut versuchen oder einen anderen Scan bzw. Ausschnitt dieser Seite hochladen.',
+        recitationGrading: 'Gemini hat das Korrekturergebnis blockiert, weil es einem veröffentlichten Werk stark ähnelte. Bitte erneut versuchen.',
       },
       settings: {
         title: 'Einstellungen',
